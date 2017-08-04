@@ -8,70 +8,40 @@
 # It then creates a group session file with these elements.
 #
 ###############################################################################
+
 use warnings;
 use strict;
-use POSIX;
 
 my @files;
 
-sub getrptFiles {
-	#input: path (to concatenate with file name, not used to change directory)
-	#output: array with rpt files
-	my $path = $_[0];
-	my @tempFiles = <*.rpt>;
-	my @rptfiles;
-	foreach my $file (@tempFiles){
-		push(@rptfiles,$path."/".$file);
-	}
-	return @rptfiles;
-}
+@files = @ARGV;
 
-#get rpt files from input
 if(not @ARGV){
 	print "No input was provided. Program will now terminate.\n";
 	exit;
 }
-elsif($ARGV[0] eq "find"){
-	#look for files in directories
-	#push including path so they can be opened form a different directory
-	#current directory
-	push(@files,getrptFiles("."));
-	#sub directory
-	opendir(my $dh, $outputDir);
-	my @dirs = grep {-d "$outputDir/$_" && ! /^\.{1,2}$/} readdir($dh);
-	foreach my $path (@dirs){
-		chdir($path);
-		push(@files,getrptFiles("./".$path));
-		chdir("..");
-	}
-}
-else{
-	foreach my $file (@ARGV){
-		if($file =~ m/\.rpt$/){
-			push(@files, $file);
-		}
-	}
+elsif($files[0] eq "find"){
+	@files = <*.rpt>;
 }
 
 open(LRF, ">", "ElementsInRPT.ses");
 
-foreach my $file (@files){}
+foreach my $file (@files){
 	#read rpt file
 	my %Elms;
 	my $LKCount = 0;
-	my @rpt = split("/",$file);
-	@rpt = split(".",@rpt[-1]);
-	$rpt = @rpt[-2];
+	$file =~ m/(.*)\.rpt/;
+	my $rpt = $1;
 
 	open(RPT, "<", $file);
 	while(<RPT>){
-		if(m/\s+Load Case:\s+SC(\d+):\s(.*), A\d+:Static Subcase/){
+		if(m/\s+Load Case:\s+/){
 			$LKCount++;
 		}
 		elsif($LKCount == 2){
 			last;
 		}
-		elsif(m/^\s*(\d+)\s+(\S+)(\s*)$/){
+		elsif(m/^\s*(\d+)\s+.*$/){
 			my $EID = $1;
 			$Elms{$EID} = 1;
 		}
@@ -91,3 +61,4 @@ foreach my $file (@files){}
 	print LRF "\" )\n";
 	print LRF "sys_poll_option( 0 )\n";
 }
+
